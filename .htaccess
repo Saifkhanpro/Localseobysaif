@@ -1,0 +1,269 @@
+# ============================================================
+# LocalSEO.pk — Apache Configuration
+# Version: 1.0.0
+# ============================================================
+
+# ---- Disable Directory Listing ----
+Options -Indexes -Multiviews
+ServerSignature Off
+
+# ---- Enable Rewrite Engine ----
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Force HTTPS
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP_HOST} !^localhost [NC]
+    RewriteCond %{HTTP_HOST} !^127\.0\.0\.1 [NC]
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+    # Force www
+    RewriteCond %{HTTP_HOST} !^www\. [NC]
+    RewriteCond %{HTTP_HOST} !^localhost [NC]
+    RewriteCond %{HTTP_HOST} !^127\.0\.0\.1 [NC]
+    RewriteRule ^(.*)$ https://www.%{HTTP_HOST}/$1 [R=301,L]
+
+    # Remove trailing slash (except directories)
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [R=301,L]
+
+    # Block access to sensitive files
+    RewriteRule ^config\.php$ - [F,L]
+    RewriteRule ^core/.*$ - [F,L]
+    RewriteRule ^models/.*$ - [F,L]
+    RewriteRule ^controllers/.*$ - [F,L]
+    RewriteRule ^views/.*$ - [F,L]
+    RewriteRule ^backups/.*$ - [F,L]
+    RewriteRule ^temp/.*$ - [F,L]
+    RewriteRule ^cache/(?!assets/).*$ - [F,L]
+
+    # Allow cache assets (minified CSS/JS)
+    RewriteRule ^cache/assets/.*\.(css|js)$ - [L]
+
+    # Sitemap
+    RewriteRule ^sitemap\.xml$ sitemap.php [L]
+    RewriteRule ^sitemap-index\.xml$ sitemap.php?type=index [L,QSA]
+    RewriteRule ^post-sitemap\.xml$ sitemap.php?type=posts [L,QSA]
+    RewriteRule ^page-sitemap\.xml$ sitemap.php?type=pages [L,QSA]
+    RewriteRule ^service-sitemap\.xml$ sitemap.php?type=services [L,QSA]
+    RewriteRule ^city-sitemap\.xml$ sitemap.php?type=cities [L,QSA]
+    RewriteRule ^category-sitemap\.xml$ sitemap.php?type=categories [L,QSA]
+    RewriteRule ^case-study-sitemap\.xml$ sitemap.php?type=case_studies [L,QSA]
+
+    # Robots.txt (dynamic)
+    RewriteRule ^robots\.txt$ index.php?route=robots [L,QSA]
+
+    # Uploaded files — serve directly
+    RewriteCond %{REQUEST_URI} ^/uploads/
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # Static assets — serve directly
+    RewriteCond %{REQUEST_URI} ^/assets/
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # Favicon
+    RewriteRule ^favicon\.ico$ assets/images/favicon.png [L]
+    RewriteRule ^favicon\.png$ assets/images/favicon.png [L]
+
+    # Front controller — route everything else through index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php [L,QSA]
+</IfModule>
+
+# ---- Security Headers ----
+<IfModule mod_headers.c>
+    # XSS Protection
+    Header set X-XSS-Protection "1; mode=block"
+    # Prevent MIME sniffing
+    Header set X-Content-Type-Options "nosniff"
+    # Clickjacking protection
+    Header set X-Frame-Options "SAMEORIGIN"
+    # Referrer Policy
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    # Permissions Policy
+    Header set Permissions-Policy "geolocation=(self), microphone=(), camera=()"
+    # Strict Transport Security (1 year)
+    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    # Content Security Policy
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tiny.cloud https://www.googletagmanager.com https://www.google-analytics.com https://www.clarity.ms https://connect.facebook.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tiny.cloud; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://www.google-analytics.com https://www.clarity.ms https://api.indexnow.org; frame-src 'self' https://www.google.com https://maps.google.com;"
+    # Remove server version
+    Header unset X-Powered-By
+    Header unset Server
+    # Cache control for HTML
+    <FilesMatch "\.(html|htm|php)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+</IfModule>
+
+# ---- GZIP / Brotli Compression ----
+<IfModule mod_brotli.c>
+    AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/css text/xml
+    AddOutputFilterByType BROTLI_COMPRESS text/javascript application/javascript application/x-javascript
+    AddOutputFilterByType BROTLI_COMPRESS application/json application/xml application/rss+xml
+    AddOutputFilterByType BROTLI_COMPRESS image/svg+xml application/xhtml+xml
+    AddOutputFilterByType BROTLI_COMPRESS font/opentype font/ttf font/eot font/otf
+</IfModule>
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml
+    AddOutputFilterByType DEFLATE text/javascript application/javascript application/x-javascript
+    AddOutputFilterByType DEFLATE application/json application/xml application/rss+xml
+    AddOutputFilterByType DEFLATE image/svg+xml application/xhtml+xml application/vnd.ms-fontobject
+    AddOutputFilterByType DEFLATE font/opentype font/ttf font/eot font/otf
+    # Don't compress images or already compressed files
+    SetEnvIfNoCase Request_URI \.(?:gif|jpe?g|png|webp|avif|ico)$ no-gzip dont-vary
+    SetEnvIfNoCase Request_URI \.(?:zip|rar|gz|bz2|7z)$ no-gzip dont-vary
+    SetEnvIfNoCase Request_URI \.(?:mp4|webm|ogg|mp3|wav)$ no-gzip dont-vary
+</IfModule>
+
+# ---- Browser Caching (mod_expires) ----
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 month"
+
+    # HTML
+    ExpiresByType text/html "access plus 0 seconds"
+
+    # CSS
+    ExpiresByType text/css "access plus 1 year"
+
+    # JavaScript
+    ExpiresByType text/javascript "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType application/x-javascript "access plus 1 year"
+
+    # Images
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/avif "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+
+    # Fonts
+    ExpiresByType font/ttf "access plus 1 year"
+    ExpiresByType font/otf "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType application/font-woff "access plus 1 year"
+    ExpiresByType application/font-woff2 "access plus 1 year"
+
+    # Video/Audio
+    ExpiresByType video/mp4 "access plus 1 year"
+    ExpiresByType video/webm "access plus 1 year"
+    ExpiresByType audio/mpeg "access plus 1 year"
+
+    # Data
+    ExpiresByType application/json "access plus 0 seconds"
+    ExpiresByType application/xml "access plus 0 seconds"
+    ExpiresByType text/xml "access plus 0 seconds"
+
+    # Manifest
+    ExpiresByType application/manifest+json "access plus 1 week"
+</IfModule>
+
+# ---- Cache-Control Headers for Assets ----
+<IfModule mod_headers.c>
+    <FilesMatch "\.(css|js)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    <FilesMatch "\.(jpe?g|png|gif|webp|avif|svg|ico)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    <FilesMatch "\.(woff2?|ttf|otf|eot)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    <FilesMatch "\.(mp4|webm|ogg|mp3|wav)$">
+        Header set Cache-Control "public, max-age=31536000"
+    </FilesMatch>
+</IfModule>
+
+# ---- ETag Configuration ----
+<IfModule mod_headers.c>
+    Header unset ETag
+</IfModule>
+FileETag None
+
+# ---- MIME Types ----
+<IfModule mod_mime.c>
+    AddType text/css .css
+    AddType text/javascript .js
+    AddType application/json .json
+    AddType image/svg+xml .svg .svgz
+    AddType image/webp .webp
+    AddType image/avif .avif
+    AddType font/woff .woff
+    AddType font/woff2 .woff2
+    AddType font/ttf .ttf
+    AddType font/otf .otf
+    AddType application/vnd.ms-fontobject .eot
+    AddType video/mp4 .mp4
+    AddType video/webm .webm
+    AddType audio/mpeg .mp3
+    AddType audio/ogg .ogg
+    AddType application/manifest+json .webmanifest
+    AddEncoding gzip .svgz
+</IfModule>
+
+# ---- Keep-Alive ----
+<IfModule mod_headers.c>
+    Header set Connection keep-alive
+</IfModule>
+
+# ---- Prevent Access to Hidden Files ----
+<IfModule mod_rewrite.c>
+    RewriteRule (^|/)\.(?!well-known) - [F]
+</IfModule>
+
+# ---- Block Sensitive File Types ----
+<FilesMatch "(^#.*#|\.(bak|config|dist|fla|inc|ini|log|psd|sh|sql|sw[op])|~)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# ---- PHP Settings (if allowed by host) ----
+<IfModule mod_php.c>
+    php_value upload_max_filesize 64M
+    php_value post_max_size 64M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_value memory_limit 256M
+    php_value max_input_vars 5000
+    php_flag display_errors Off
+    php_flag log_errors On
+    php_value error_log error_log.txt
+</IfModule>
+
+# ---- Prevent Image Hotlinking ----
+<IfModule mod_rewrite.c>
+    RewriteCond %{HTTP_REFERER} !^$
+    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?localseo\.pk [NC]
+    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?google\. [NC]
+    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?bing\. [NC]
+    RewriteCond %{REQUEST_URI} \.(jpe?g|png|gif|webp|svg)$ [NC]
+    RewriteRule . - [F,L]
+</IfModule>
+
+# ---- Enable mod_rewrite logging (comment out in production) ----
+# LogLevel alert rewrite:trace3
+
+# ---- Custom Error Pages ----
+ErrorDocument 403 /index.php?route=error/403
+ErrorDocument 404 /index.php?route=error/404
+ErrorDocument 500 /index.php?route=error/500
+
+# ---- Limit Request Body Size (10MB) ----
+LimitRequestBody 10485760

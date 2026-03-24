@@ -1,0 +1,8 @@
+config.php
+cache/
+uploads/
+backups/
+temp/
+.vscode/
+.DS_Store
+*.zip

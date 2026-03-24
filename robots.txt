@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /cache/
+Disallow: /core/
+Disallow: /models/
+Disallow: /controllers/
+Disallow: /views/
+Disallow: /backups/
+Disallow: /temp/
+Disallow: /install.php
+Disallow: /config.php
+Disallow: /search?
+
+Sitemap: https://www.localseo.pk/sitemap.xml
